@@ -1,0 +1,932 @@
+<style type="text/css">
+
+<!-- 
+span.correct { background-color: #FFFFFF; }
+span.highlight  { background-color: yellow; }
+span.tmp_highlight  { background-color: lightgreen; }
+span.highlight_for_deletion  { background-color: red; }
+A:link {text-decoration: none; color: black;}
+A:visited {text-decoration: none; color: black;}
+A:active {text-decoration: none; color: black;}
+A:hover {text-decoration: none; color: black;}
+#tabs { font-size: 10pt;}
+-->
+</style>
+
+
+<link href="http://ajax.googleapis.com/ajax/libs/jqueryui/1.8/themes/base/jquery-ui.css" rel="stylesheet" type="text/css"/>
+<script src="http://ajax.googleapis.com/ajax/libs/jquery/1.4/jquery.min.js"></script>
+<script src="http://ajax.googleapis.com/ajax/libs/jqueryui/1.8/jquery-ui.min.js"></script>
+<script src="spellChecker.js"></script>
+
+
+<script type="text/Javascript">
+
+
+//<script language="javascript" type="text/javascript" src="spellChecker.js">
+
+
+//var sentences = ["${sentence_1}", "${sentence_2}", "${sentence_3}", "${sentence_4}", "${sentence_5}", "${sentence_6}", "${sentence_7}", "${sentence_8}", "${sentence_9}", "${sentence_10}"]; 
+//var sentences = ["${sentence_1}", "${sentence_2}", "${sentence_3}", "${sentence_4}", "${sentence_5}"];
+
+
+var sentences = [ 
+	"The andhra stat ws formed on october 1953 with kurnool as the state capital.",   
+	"Sri Lanka is considered as the bird's sanctionary place.",     
+	"For further informaton please see the article on bird sanctionary rights in Indian Subcontinent.",   
+	"There is thousand of animals living in Sri Lanka which includes several Sri Lanka orignated animals.",   
+	"When we compare the area of Sri lanka 's Island , birds are highly found here."
+];
+
+/*
+var sentences = [
+"One two three",
+"four five six",
+"seven eight"
+];*/
+
+var words = [ [], [], [], [], []];
+var highlights = [ [], [], [], [], []];
+var tmp_highlights = [ [], [], [], [], []];
+var num_highlights = [0, 0, 0, 0, 0];
+var previously_clicked_word = [-1, -1, -1, -1, -1];
+var spans = [ [], [], [], [], []];
+var just_clicked = [];
+var global_changes = [[], [], [], [], []];
+
+var steps = [ 'spelling', 'articles', 
+//'other_determiners', 'noun_numbers',
+'det_noun', 'noun_of_noun',
+'pronouns', 'prepositions', 'sv_agreement', 'tense', 'verb_form_ig', 'word_form',
+//'adj', 'missing',
+'awk_phrases'];
+
+var tab_names = new Array();
+tab_names['spelling'] = 'Spelling';//+
+tab_names['articles'] = 'Determiner';//+
+tab_names['det_noun'] = 'NounAgr';
+//tab_names['other_determiners'] = 'Other Determiners';
+//tab_names['noun_numbers'] = 'Noun Numbers';//agreement between noun and determiner
+tab_names['noun_of_noun'] = 'Noun';//+
+tab_names['pronouns'] = 'Pronoun';//+
+tab_names['prepositions'] = 'Preposition';//+T
+//tab_names['adj'] = 'Adjective';
+//tab_names['adj'] = 'Adverb';
+tab_names['sv_agreement'] = 'VerbAgr';
+tab_names['tense'] = 'Tense';
+tab_names['verb_form_ig'] = 'VerbForm';
+tab_names['word_form'] = 'WordForm';//adjective vs. adverb confussion
+//tab_names['missing'] = 'Missing Fragment';//if subject or verb is missing then it should be corrected at agreement tab
+tab_names['awk_phrases'] = 'AwkwardPhrase';
+ 
+var highlighting_modes = new Array();
+highlighting_modes['spelling'] = 'word';
+highlighting_modes['articles'] = 'word';
+highlighting_modes['det_noun'] = 'pair';//may be a pair
+//highlighting_modes['other_determiners'] = 'word';
+//highlighting_modes['noun_numbers'] = 'word';
+highlighting_modes['noun_of_noun'] = 'phrase';
+highlighting_modes['pronouns'] = 'word';
+highlighting_modes['prepositions'] = 'word';
+highlighting_modes['sv_agreement'] = 'pair'; //should be a pair 
+highlighting_modes['tense'] = 'word'; 
+highlighting_modes['verb_form_ig'] = 'word';
+highlighting_modes['word_form'] = 'word';
+//highlighting_modes['adj'] = 'phrase';
+//highlighting_modes['missing'] = 'phrase';
+highlighting_modes['awk_phrases'] = 'phrase';
+
+var descriptions = new Array();
+descriptions['spelling'] = "<font color=red size = 2><p> You must select individual words on this tab.</p></font>" +
+"<font size = 2><b>Instructions:</b> Please correct spelling errors, punctuation errors and incorrect case conventions by clicking on a word and typing out a replacement.</font>" +
+"<ul><font color=green size = 2><li>Incorrect: <u>s</u>ongs and music helps to <u>creat</u> a good atmosphere among people.</li>" +
+"Correct: <u>S</u>ongs and music helps to <u>create</u> a good atmosphere among people.</li></font> </ul>";
+
+descriptions['articles'] = "<font color=red><p> You must select individual words on this tab.</p></font>" + 
+"<p><b>Instructions:</b> Please correct article errors by clicking on a word and changing incorrect article, "  + 
+"adding missing article or deleting unnecessary article.</p> <ul> <li>an incorrect article is used:" +
+"<ul><font color=green><li>Incorrect: In Europe, the First World War started coming to <u>an</u> end after a huge destruction.</li> " + 
+"Correct: In Europe, the First World War started coming to <u>the</u> end after a huge destruction.</li></font></ul> " +
+//"<br><ul><font color=green><li>Incorrect: Blogs are considered as <u>the</u> direct way to participate in politics.</li>" +
+//"Correct: Blogs are considered as <u>a</u> direct way to participate in politics.</li></font></ul> " +
+
+"<li>an article is missing but it is required: <ul> <font color=green>" +
+"<li>Incorrect: Command line scripting: PHP script can run without server.</li> " +
+"Correct: Command line scripting: PHP script can run without <u>a</u> server.</li></font></ul> " +
+
+//"<li>There were no instances of NTR faltering in front of */the camera.</li>Ê
+//<li>Hardware errors are one type of errors in /the kernel.</li></i></font></ul>
+
+//<li>All *the warring nations commenced deliberations.</li>
+//<li>However, *the specific defects are not known.</li>
+"<li>an unnecessary article appears:<ul> " + 
+"<font color=green><li>Incorrect: They could not attain <u>a</u> victory.</li> " +
+"Correct: They could not attain victory.</li></font></ul></ul>";
+
+//<p><b>Quick review:</b> Indefinite articles <i>a</i> and <i>an</i> are used in front of nonspecific, singular count nouns <font color=green><i>a movie, a cat.</i></font> Definite article <i>the</i> is used in front of specific singular and plural nouns <font color=green><i>the movie, the cats</i></font>. Many uncountable nouns require no article at all <font color=green><i>honesty, news etc.
+//descriptions['other_determiners'] = "<p><b>Instructions:</b> Please correct other determiners including <i>this/that, these/those, each/every, either/neither, some/any, much, many, few, little, several, most, enough etc.</i> if they used incorrectly by clicking on words and typing out a replacement.</p>";
+
+descriptions['det_noun'] = "<font color=red><p> You must select determiner and noun pairs on this tab.</p></font>" +
+"<p><b>Instructions:</b> Please correct determiners including <u>this/that, these/those, each/every, either/neither, some/any, much, many, few, little, " + 
+"several, most, enough</u> if they used incorrectly together with a specific noun by clicking on a pair of words and typing out a replacement.</p>";
+
+//<ul> <li>Demonstrative determiners: <ul> <li><i>this/that</i> is used with singular count nouns <font color=green><i>*these/this dog</i></font>, non-count nouns <font color=green><i>*these/that coffee;</font></i></li> <li><i>these/those</i> is used with plural count nouns <font color=green><i>*this/these dogs, *this/those people.</font></i></li> </ul>  <li>Distributive determiners: <ul> <li><i>each/every</i> is used with single count nouns <font color=green><i>*each bottles/each bottle, *every people/every person.</font></i></li> </ul>  <li>Disjunctive determiners: <ul> <li><i>either/neither</i> is used with singular count nouns <i><font color=green>either hat is fine.</font></i></li> </ul>  <li>Existential determiners: <ul> <li><i>some/any</i> is used with singular and plural count nouns, noncount nouns <font color=green><i>some car, any new houses.</i></font></li> </ul>  <li>Degree determiners: <ul> <li><i>much</i> is used with noncount nouns <font color=green><i>*many/much wine, *many/much furniture;</i></font></li> <li><i>enough</i> is used with plural count nouns <font color=green><i>enough troubles</i></font>, noncount nouns <font color=green><i>enough furniture.</i></font></li> </ul> </ul>"
+//descriptions['noun_numbers'] = "<p><b>Instructions:</b> Please correct errors involving plural/singular confusion of a noun by clicking on words and typing out a replacement as shown in example sentence below: <ul><i><font color=green><li>In terms of population, India is one of the *worlds/world leaders.</li></font></i></ul></p>";
+
+descriptions['noun_of_noun'] = "<font color=red><p> You must select noun phrases on this tab or individual words. </p> </font>"+
+"<p><b>Instructions:</b> Please correct errors involving incorrect noun form (plural vs. singular) in noun phrases by clicking on a phrase and typing out a replacement."+
+"<ul> <font color=green><li>Incorrect: It has powers to arrange fair <u>election</u>.</li>Correct: It has powers to arrange fair <u>elections</u>.</li> </font></ul> </p>";
+
+descriptions['pronouns'] = "<font color=red><p> You must select individual words on this tab.</p></font>" + 
+"<p><b>Instructions:</b> Pronouns must agree in number with the noun to which they refer, for example, <u>I - me/my, you - yours, he - him/his, she - her, " + 
+"we - our/us, they - their/them</u>. Please correct errors involving incorrect pronouns by clicking on a word and typing out a replacement. <ul>"+
+"<font color=green><li>Incorrect: America, Britain and Japan landed <u>its</u> armies in Vladovostik.</li>"+
+"Correct: America, Britain and Japan landed <u>their</u> armies in Vladovostik.</li></font> </ul></p> ";
+
+descriptions['prepositions'] = "<font color=red><p> You must select individual words on this tab.</p></font>" + 
+"<p><b>Instructions:</b> Prepositions like <u>about, at, by, down, for, from, in, into, of, off, on, onto, out, over, "+
+"to, up, upon, with, within,</u> are difficult for ESL writers. Please correct all prepositions that are used incorrectly, "+
+"insert missing or delete unnecesary prepositions."+
+"<ul> <font color=green><li> Incorrect: He should add Vishakapatnam N.T.D code <u>for</u> this phone number.</li>" +
+"Correct: He should add Vishakapatnam N.T.D code <u>to</u> this phone number.</li></font> </ul></p>";
+//<li>This is fast *in speed, independent, reliable and diversified platform.</li>
+//<li>*For it does not require any compilation.</li>
+//<li>As a result of its support *for/in the war.</li>
+// <li>He should add Vishakapatnam N.T.D code 0891 *for/to this phone number.</li> </i></font> </ul></p>";
+
+descriptions['sv_agreement'] = "<font color=red><p>You must select subject and verb pairs on this tab.</p></font>" + 
+"<p><b>Instructions:</b> Every sentence must have subject and verb that agreed. " +
+"If the subject is singular, the verb must be singular. If the subject is plural, the verb must be plural as well. "+
+"Please correct any errors involving subject verb agreement by selecting an incorrect subject-verb pair and typing out a replacement." +
+"<ul><font color=green><li>Incorrect: Australia <u>have</u> participated in every Summer Olympics.</li>"+
+"Correct: Australia <u>has</u> participated in every Summer Olympics.</li></font> </ul></p>";
+//   <li>Diabetes mellitus *are/is classified separately due to a known defect.</li></i></font> </ul></p> ";
+   
+descriptions['tense'] = "<font color=red><p> You must select individual words on this tab.</p></font>" + 
+"<p><b>Instructions:</b> In every sentence verbs must reflect a correct tense. "+
+"Please correct errors involving incorrect tense usage by clicking on verbs and typing out a replacement."+
+"<ul> <font color=green><li> Incorrect: Since 2000, Australia <u>is</u> among the top five medal winner countries.</li>"+
+"Correct: Since 2000, Australia <u>has been</u> among the top five medal winner countries.</li></font> </ul></p>";
+
+//<li>All warring nations are commencing deliberations now.</li> 
+//<li>By the end of 5th century their empire *collapsed/had collapsed.</li></i></font> </ul></p>"
+    
+//<p><b>Quick review</b>  <ul> <li>Present Simple: S + V/Vs, Do/Does S + V? <font color=blue><i>Signal words: every day, usually, never, at first, then, after, in the morning, evening, often.</i></font></li> <li>Present Continuous: to be + Ving, are + we/you/they + Ving?, is + he/she/it + Ving? am + I + Ving? <font color=blue><i>now, at the moment.</i></font></li> <li>Present Perfect: S + have/has + Ved/3, Have + S + Ved/3? <font color=blue><i>twice, several times, lately, recently, yet, already, never, just, ever.</i></font></li> <li>Present Perfect Continuous: I/we/you/they + have been + Ving, He/she/it + has been + Ving <font color=blue><i>since, for.</i></font></li> <li>Past Simple: S + Ved/2, did + S + V1? <font color=blue><i>yesterday, last year/month/week.</i></font></li> <li>Past Continuous: S + was/were + Ving, was/were + S + Ving? <font color=blue><i>at, when, while, at 2 oclock.</i></font></li> <li>Past Perfect: S + had + Ved/3, had + S + Ved/3? <font color=blue><i>by, before.</i></font></li> <li>Past Perfect Continuous: S + had been + Ving.</li> <li>Future Simple: S+will+V, will +S+V? <font color=blue><i>tomorrow, next week, next month, often , every day, soon.</i></font></li> <li>Future Continuous: S + will be + Ving, will + S + be + Ving? <font color=blue><i>at, when, while, tomorrow.</i></font></li> <li>Future Perfect: S + will have + Ved/3, Will + S + have + Ved/3? <font color=blue><i>by, before, tomorrow.</i></font></li> <li>Future Perfect Continuous: S + will have been + Ving, He/she/it + has been + Ving.</li> </ul></p>"
+descriptions['verb_form_ig'] = "<font color=red><p> You must select individual words on this tab.</p></font>" +
+"<p><b>Instructions:</b> Please identify and correct verb form errors, for example, when "+
+"ending \"-ed\" added to irregular verb or an incorrect verb form is used for a particular tense."+
+"<ul> <font color=green><li>Incorrect: They grew up together and <u>remain</u> friends forever.</li>"+
+"Correct: They grew up together and <u>remained</u> friends forever.</li></font> </ul></p>" +
+
+"<p>There is a list of verbs that must be followed by infinitive or gerund. You should also correct infinitive/gerund confusion errors if an incorrect verb form is used. "+
+"<ul> <font color=green><li>Incorrect: They started <u>allowing</u> Rafi <u>to sing</u> for them.</li>"+
+"Correct: They started <u>to allow</u> Rafi <u>singing</u> for them.</li></font></ul></p>";
+
+//They started *interfering/to interfere into disputes between local kings.</li>
+//<li>Baiju Baavera's songs helped Rafi *establish/to establish himself as a mainstream singer.</li>
+// <li>They have started *allowing/to allow Rafi *to sing/singing for them.</li>
+// <li>India started *carving/to carve its own place in the world economy.</li></i></font> </ul></p> ";
+
+
+descriptions['word_form'] = "<font color=red><p> You must select individual words on this tab.</p></font>" +
+"<p><b>Instructions:</b> Please correct errors when an incorrect form of the word is used, for example, noun form is used instead of adjectival form, "+
+"noun form is used instead of verb form, adjectival form is used instead of adverbial form."+
+"<ul> <font color=green><li>Incorrect: Narayini explanations in Bagavath Gita is very <u>help</u> for people.</li>"+
+"Correct: Narayini explanations in Bagavath Gita is very <u>helpful</u> for people.</li></font></ul></p>";
+//<li>An important *uses/usage of PHP.</li>
+
+//descriptions['adj'] = "<font color=red><b>Attention:</b><p> You must select phrases on this tab, but not individual words.</font> </p> <p><b>Instructions:</b> If you are using more than one adjective, they usually follow a specific order: 1) article, 2) judgment, 3) size, 4) shape, 5) age, 6) color, 7) nationality, and 8) material. You should correct errors involving order of adjectives by clicking on a phrase and typing adjectives in correct order.</p>";
+//descriptions['missing'] = "<font color=red><b>Attention:</b><p> You must select phrases on this tab, but not individual words. </p> </font><p><b>Instructions:</b> If sentence lacks a subject, a verb, or both then it cannot stand alone as a sentence. In this step you should correct errors involving missing fragment in the sentence by clicking on a word which follows missing fragment and retyping it including missing fragment. <ul> <font color=green><i><li>*Very simple in use/It is very simple in use and very powerful. <li>*Was born/He was born in the city of Mecca on April 20th. <li>Blogs *are considered as a part of an open source politics.</li></i></font></ul></p>";
+
+descriptions['awk_phrases'] = "<font color=red><p>  Do this tab if you have already corrected all other errors.</p> "+
+"<p>You must select phrases on this tab, not individual words. </p>"+
+"</font>  <p><b>Instructions:</b> In this step you should identify and replace an awkward word or a phrase with more appropriate English word/phrase. "+
+"Also, you may delete a fragment if the sentence is two wordy or contains repetitive information.";
+//"<ul> <font color=green><i>"+
+//" <li>Japan sent *personnel/people in order to gain the further involvement.</li>
+//<li>It does not *need/require any compilation.</li>
+//<li>Britain and USA became suspicious *that/due to the fact that Japan could construct permanent bases there.</li></i></font></ul></p> ";
+
+
+
+/**
+ * Initializes the arrays that store the space-delimited words, 
+ * and the boolean arrays that indicate what words were marked
+ * as highlights.
+ */
+ 
+function initalizeArrays() { 
+	var initial_highlights = "";
+	for(var i = 0; i < sentences.length; i++) {
+		/*sentences[i] = sentences[i].replace("&amp;", "&");
+		sentences[i] = sentences[i].replace("&#44;", ",");
+		sentences[i] = sentences[i].replace("&gt;", ">");
+		sentences[i] = sentences[i].replace("&lt;", "<");
+		sentences[i] = sentences[i].replace("&quot;", "'");
+		sentences[i] = sentences[i].replace("&#39;", "'");	*/	
+
+		words[i] = sentences[i].split(/\s/);
+		
+	
+	/*for (var j = 0; i < words[i].lengh; j++){
+			words[j] = words[i].splice(j, 0, "_");
+	}*/
+	
+						
+		highlights[i] = initalizeArray(words[i].length, false);
+		tmp_highlights[i] = initalizeArray(words[i].length, false);
+		num_highlights[i] = 0;
+		spans[i] = initalizeArray(words[i].length, -1);
+		previously_clicked_word[i] = -1;
+		just_clicked[i] = false;
+		//global_changes[i] = 0;		
+	}
+}
+
+function openSpellChecker() {
+	// get the textarea we're going to check
+	//var txt = document.myform.mytextarea;
+	// give the spellChecker object a reference to our textarea
+	// pass any number of text objects as arguments to the constructor:
+	var speller = new spellChecker(document.myform.mytextarea);
+	// kick it off
+	speller.openChecker();
+}
+
+/**
+ * Initializes an array with the specified value to be the specified length.
+ */
+function initalizeArray(length, value) {
+	var array = new Array(length);
+	for (i = 0; i < array.length; i++) {
+		array[i] = value;
+	}
+	return array;
+}
+
+
+/**
+ * Write the tabs by iterating through the steps, 
+ * and naming them according to the tab_names.
+ */
+function writeTabs() {
+	document.write('<div id="tabs">');
+	document.write('<ul>');
+	for(var i = 0; i < steps.length; i++) {
+        document.write('<li><a href="#' + steps[i] + '">');
+		document.write('<span>' + tab_names[steps[i]] + '</span>');
+		document.write('</a></li>');
+	}
+	document.write('</ul>');
+
+	for(var i = 0; i < steps.length; i++) {
+        	document.write('<div id="' + steps[i] + '"> ');
+		document.write('</div>');
+	}
+	document.write('</div>');
+
+	for(var i = 0; i < steps.length; i++) {
+		document.getElementById(steps[i]).innerHTML = writeTab(steps[i]);
+	}
+
+	for(var i = 0; i < steps.length; i++) {
+		hideCorrectionsTable(steps[i]);
+	}
+}
+
+function updateTab(step) {
+	document.getElementById(step).innerHTML = writeTab(step);
+	hideCorrectionsTable(step);
+}
+
+
+/**
+ * Write the sentences and the correction table.
+ */
+function writeTab(step) {
+	initalizeArrays();
+	tab_text = descriptions[step] + '<hr>';
+	// ccb - we could create a separate pane what records changes have been made...
+	// tab_text += '<table><tr><td width="80%">';
+	for(i = 0; i < sentences.length; i++) {
+		tab_text += '<p>';
+		tab_text += writeSentence(step, i);
+		tab_text += writeCorrectionsTable(step, i);
+		tab_text += '</p>';
+	}
+	
+	
+	//tab_text += writeGlobalChanges();
+	
+	
+	// ccb - pane with changes...
+	//tab_text += '</td><td >';
+	//tab_text += 'changes here';
+	//tab_text += '</td></tr></table>';
+	return tab_text;
+}
+
+function writeGlobalChanges(){
+	var text = '';
+	//text += '<input type="hidden" name="' + global_changes + '" />';
+	//text += global_changes;
+	return text;
+}
+
+/**
+ * Hide the corrections table.
+ */
+function hideCorrectionsTable(step) {
+	for(i = 0; i < sentences.length; i++) {
+		for(var j = 0; j < words[i].length; j++) {
+			var row = document.getElementById(step + '_highlight_table_' + i + '_' + j);
+			row.style.display = 'none';
+		}
+	}
+}
+
+
+
+/** 
+ * Writes sentence i to the HTML document and wraps 
+ * every word with a javascript click function.
+ */
+function writeSentence(step, i) {
+	var text = '';
+	for(j = 0; j < words[i].length; j++) {
+		var word = words[i][j];
+		text += '<span class="correct" id="' + step + '_word_' + i + '_' + j + '" onClick="clickWord(\'' + step + '\', ' + i + ', ' + j + ')"  onMouseOver="mouseOverWord(\'' + step + '\', ' + i + ', ' + j + ')" >';
+		text += word;
+		text += ' </span>';
+	}
+	return text;
+}
+
+/** 
+ * Writes the correction table for i to the HTML document as well as
+ * hidden  form elements for the highlight_mask and the num_highlights.
+ */
+function writeCorrectionsTable(step, i) {
+	var text = '';
+		// set the width of the text inputs
+	var width = 20;
+	if(highlighting_mode == "phrase") {
+		width = 40;
+	} else if(highlighting_mode == "pair") {
+		width = 10;
+	}
+	text += '<table>';
+	for(j = 0; j < words[i].length; j++) {
+		var word = words[i][j];
+		text += '<tr class="hidden" id="' + step + '_highlight_table_' + i + '_' + j + '"><td>';
+		text += '<span id="' + step + '_selection_' + i + '_' + j + '">' + word + '</span>';
+		text += '</td><td>';
+		text += '<input type="text" size="' + width + '" id="' + step + '_correction_' + i + '_' + j + '" />';
+		//SOV - insert buttons here
+		/*var buttonAccept = document.createElement('input');
+			
+			buttonAccept.setAttribute('type','button');
+			buttonAccept.setAttribute('name','Accept');
+			buttonAccept.setAttribute('value','Accept');
+			row.appendChild(buttonAccept);
+			
+			var buttonReject = document.createElement('input');
+			
+			buttonReject.setAttribute('type','button');
+			buttonReject.setAttribute('name','Reject');
+			buttonReject.setAttribute('value','Reject');
+			row.appendChild(buttonReject);
+			
+			buttonReject.onClick = removeElement('row');*/
+			
+		if(highlighting_mode == "pair") {
+		
+			text += ' ... <input type="text" onblur="correctWord(\'' + step + '\', ' + i + ', ' + j + ')" id="' + step + '_correction_' + i + '_' + j + '_b" size="' + width + '" />';
+		}
+		
+		text += '<input type="button" value = "Confirm" onClick = "correctWord(\'' + step + '\', ' + i + ', ' + j + ')" >';
+		text += '</td></tr>';
+
+	}
+	text += '</table>';
+	text += '<input type="hidden" name="' + step + '_highlight_mask_' + (i+1) + '" id="' + step + '_highlight_mask_' + (i+1) + '" />';
+	text += '<input type="hidden" name="' + step + '_num_highlights_' + (i+1) + '" id="' + step + '_num_highlights_' + (i+1) + '" />';
+	text += '<input type="hidden" name="' + step + '_results_' + (i+1) + '" id="' + step + '_results_' + (i+1) + '" />';
+	
+	return text;
+}
+
+
+function boolArrayToString(array) {
+	var arrayString = "";
+	for(i = 0; i < array.length; i++) {
+		if(array[i]) {
+			arrayString = arrayString + "1";
+		} else {
+			arrayString = arrayString + "0";
+		}
+	}
+	return arrayString;
+}
+
+
+/**
+ * Corrects the word j in sentence i with the value in the text field
+ * checks to see if the correction is blank before replacing the word.
+ */
+function correctWord(step, i, j) { 
+	var word = document.getElementById(step + "_word_"+ i + '_' + j);
+	var correction = document.getElementById(step + "_correction_" + i + '_' + j).value;
+	
+	correction = correction.replace(/^\s+/g, "");
+	correction = correction.replace(/\s+$/g, "");
+	if(correction != "") {
+		word.innerText = correction + " ";
+	}
+	if(highlighting_mode == "pair") {
+		other_word = spans[i][j];
+		var second_word = document.getElementById(step + "_word_"+ i + '_' + other_word);
+		var correction_of_second_word = document.getElementById(step + "_correction_"+ i + '_' + j + '_b').value;
+		correction_of_second_word = correction_of_second_word.replace(/^\s+/g, "");
+		correction_of_second_word = correction_of_second_word.replace(/\s+$/g, "");
+		if(correction_of_second_word != "") {
+			second_word.innerText = correction_of_second_word + " ";
+		}
+	}
+	// SOV - debugging
+//	var row = document.getElementById(step + "_highlight_table_"+ i + '_' + j);
+//	row.style.display = "none";
+}
+
+/**
+ * Reverts the word j in sentence i to its original version.
+ */
+function uncorrectWord(step, i, j) { 
+	var word = document.getElementById(step + "_word_"+ i + '_' + j);
+	word.innerText = words[i][j] + " ";
+}
+
+
+
+/**
+ * Causes the highlights to be displayed in the HTML.
+ */
+function reset_highlights(step) {
+   for(var i = 0; i < highlights.length; i++) {
+	for(var j = 0; j < highlights[i].length; j++) {
+		var word = document.getElementById(step + "_word_"+ i + '_' + j);
+		if(tmp_highlights[i][j] && highlights[i][j] && !just_clicked[i]) {
+			word.className = "highlight_for_deletion";
+		} else if(highlights[i][j] && just_clicked[i]) {
+			word.className = "highlight";
+		} else if(tmp_highlights[i][j]) {
+			word.className = "tmp_highlight";
+		} else if(highlights[i][j]) {
+			word.className = "highlight";
+		} else {
+			word.className = "correct";
+		}
+	}
+   }
+}
+
+
+
+/**
+ * Clears the tmp highlights in all sentences.
+ */
+function clear_tmp_highlights() {
+	for(i = 0; i < tmp_highlights.length; i++) {
+		for(var j = 0; j < tmp_highlights[i].length; j++) {
+			tmp_highlights[i][j] = false;
+		}
+	}
+}
+
+
+/**
+ * This method specifies action to take when clicking on word j in sentence i.
+ */
+function clickWord(step, i, j) {
+	clear_tmp_highlights();	
+	// This governs the highlighting behavior when the selection mode is individual words. 
+	if(highlighting_mode == "word") {
+		highlights[i][j] = !highlights[i][j];
+		var row = document.getElementById(step + "_highlight_table_"+ i + '_' + j);
+		
+		if(highlights[i][j]) {
+			row.style.display = "";
+			correctWord(step, i, j);
+			document.getElementById(step + "_correction_"+ i + '_' + j).value = words[i][j];
+			document.getElementById(step + "_correction_"+ i + '_' + j).focus();
+			
+			
+			} else {
+			row.style.display = "none";
+			uncorrectWord(step, i, j);
+		}
+	// This governs the highlighting behavior when the selection mode is phrases. 
+	} else if(highlighting_mode == "phrase") {
+		if(previously_clicked_word[i] > -1) {
+			prev_click = previously_clicked_word[i];
+			span_start = Math.min(prev_click, j);
+			span_end = Math.max(prev_click, j);
+			if(prev_click == span_start) {
+				span_end = getMinHighlightableWord(i, span_start, span_end);
+			} else {
+				span_start = getMaxHighlightableWord(i, span_start, span_end);
+			}
+			spans[i][span_start] = span_end;
+			phrase = words[i][span_start] + " ";
+			var first_word = document.getElementById(step + "_word_"+ i + '_' + span_start);
+			highlights[i][span_start] = true;
+			for(var k = span_start +1; k <= span_end; k++) {
+				highlights[i][k] = true;
+				phrase += words[i][k] + " ";		
+				// update the first word with the content of the phrase
+				first_word.innerText = phrase;
+				// hide the remaining words
+				var word = document.getElementById(step + "_word_"+ i + '_' + k);
+				word.style.display = "none";
+				spans[i][k] = -1;
+			}
+			var selection = document.getElementById(step + "_selection_"+ i + '_' + span_start);
+			selection.innerText = phrase;
+			var row = document.getElementById(step + '_highlight_table_' + i + '_' + span_start);
+			row.style.display = "";
+			document.getElementById(step + "_correction_"+ i + '_' + span_start).value = phrase;			
+			document.getElementById(step + "_correction_"+ i + '_' + span_start).focus();
+			previously_clicked_word[i] = -1;
+		} else {
+			if(!highlights[i][j]) {
+				previously_clicked_word[i] = j;
+				tmp_highlights[i][j] = true;
+			} else {
+				// unselect this phrase...
+				span_start = j;
+				span_end = spans[i][span_start];
+				for(var k = span_start; k <= span_end; k++) {
+					highlights[i][k] = false;
+					var word = document.getElementById(step + "_word_"+ i + '_' + k);
+					word.innerText = words[i][k] + " ";
+					word.style.display = "";
+				}
+				var row = document.getElementById(step + "_highlight_table_"+ i + '_' + span_start);
+				row.style.display = "none";
+				spans[i][j] = -1;
+				previously_clicked_word[i] = -1;
+			}
+		} 
+	// This governs the highlighting behavior when the selection mode is word pairs. 
+	} else if(highlighting_mode == "pair") {
+		// once we've already clicked on the first word, click on the second.
+		prev_click = previously_clicked_word[i];
+		if(prev_click > -1) {
+			// make sure that there are two words
+			if(prev_click != j && !highlights[i][j]) {
+				first_word = Math.min(j, prev_click);
+				second_word = Math.max(j, prev_click);
+				highlights[i][first_word] = true;
+				highlights[i][second_word] = true;
+				var selection = document.getElementById(step + "_selection_"+ i + '_' + first_word);
+				selection.innerText = words[i][first_word] + ' ... ' + words[i][second_word];
+				var row = document.getElementById(step + "_highlight_table_"+ i + '_' + first_word);
+				row.style.display = "";
+				document.getElementById(step + "_correction_"+ i + '_' + first_word).value = words[i][first_word];				
+				document.getElementById(step + "_correction_"+ i + '_' + first_word).focus();
+
+				document.getElementById(step + "_correction_"+ i + '_' + second_word).value = words[i][second_word];
+				previously_clicked_word[i] = -1;
+				spans[i][first_word] = second_word;
+				spans[i][second_word] = first_word;
+			}
+		} else {
+			if(!highlights[i][j]) {
+				previously_clicked_word[i] = j;
+				tmp_highlights[i][j] = true;
+			} else {
+				// unselect this word pair...
+				first_word = Math.min(j, spans[i][j]);
+				second_word = Math.max(j, spans[i][j]);
+				highlights[i][first_word] = false;
+				highlights[i][second_word] = false;
+				spans[i][first_word] = -1;
+				spans[i][second_word] = -1;
+				var row = document.getElementById(step + "_highlight_table_"+ i + '_' + first_word);
+				row.style.display = "none";
+				previously_clicked_word[i] = -1;
+			}
+		} 
+
+	}
+	reset_highlights(step); 
+	just_clicked[i] = true;
+	document.getElementById(step + '_highlight_mask_' + (i+1)).value = boolArrayToString(highlights[i]);
+	document.getElementById(step + '_num_highlights_' + (i+1)).value = num_highlights[i];
+}
+
+
+
+/**
+ * This method specifies action to take when mousing over  word j in sentence i.
+ */
+function mouseOverWord(step, i, j) { 
+	clear_tmp_highlights();
+	if(highlighting_mode == "word") {
+		tmp_highlights[i][j] = true;
+	} else if(highlighting_mode == "phrase") {
+		if(previously_clicked_word[i] == -1) {
+			tmp_highlights[i][j] = true;
+		} else {
+			prev_click = previously_clicked_word[i];
+			span_start = Math.min(prev_click, j);
+			span_end = Math.max(prev_click, j);
+			if(prev_click == span_start) {
+				span_end = getMinHighlightableWord(i, span_start, span_end);
+			} else {
+				span_start = getMaxHighlightableWord(i, span_start, span_end);
+			}
+			for(var k = span_start; k <= span_end; k++) {
+				tmp_highlights[i][k] = true;
+			}
+		}
+
+	} else if(highlighting_mode == "pair") {
+		tmp_highlights[i][j] = true;
+		var prev_click = previously_clicked_word[i];
+		if(prev_click > -1) {
+			tmp_highlights[i][prev_click] = true;
+		}
+		var other_word = spans[i][j];
+		if(other_word > -1) {
+			tmp_highlights[i][other_word] = true;
+		} 
+	}
+	reset_highlights(step);
+	just_clicked[i] = false;
+}
+
+
+
+
+/** 
+ * Returns the minimum highlighted word in range [j-k) in sentence i.
+ */
+function getMinHighlightableWord(i, j, k) {
+	for(var l = j+1; l <= k; l++) {
+		if(highlights[i][l]) {
+			return l-1;
+		}
+	}
+	return k;
+}
+
+
+/** 
+ * Returns the maximum highlighted word in range [j-k] in sentence i.
+ */
+function getMaxHighlightableWord(i, j, k) {
+	for(var l = k-1; l > j; l--) {
+		if(highlights[i][l]) {
+			return l+1;
+		}
+	}
+	return j;
+}
+
+/**
+ * Compiles the corrections for a sentence.
+ */
+function compileCorrections(step, i) {
+	// reconstruct the new sentence from the corrections
+	
+	
+	var sentence = "";
+	for(var j = 0; j < words[i].length; j++) {
+		var word = document.getElementById(step + '_word_' + i + '_' + j);		
+		if(word.style.display != "none") {
+			sentence += word.innerText + " ";
+		}
+	}
+	
+	//alert(sentence[i]);
+	
+	// clean up extraneous spaces
+	sentence = sentence.replace(/^\s+/g, "");
+	sentence = sentence.replace(/\s+$/g, "");
+	sentence = sentence.replace(/\s+/g, " ");
+	
+//	var anonymizedFormElement = document.getElementById(step + '_anonymized_' + (i+1));
+//	anonymizedFormElement.value = sentence;
+
+	var initialSentence = sentences[i];	
+	var changes = '['+ step + ']' + ' \t ' + initialSentence + '|' + sentence + ' \t ';
+	//alert(initialSentence);
+		
+	
+	// collect the individual changes
+	for(var j = 0; j < words[i].length+1; j++) {
+		// this word / region has been changed
+		if(highlights[i][j]) {
+		
+		var word = document.getElementById(step + '_word_' + i + '_' + j);
+		var replacementText = word.innerText;//correct word
+		
+			
+			//alert(replacementText);
+		
+			if(highlighting_mode == "word") {
+				//changes += 'word' + '@' + j + '@' + replacementText + '@' + '\n';
+				changes += '('+ words[i][j] + '|' + replacementText + ' span ' + j + "-" + j + ')'; 				
+				//alert(spans[i][j]);
+			} else if(highlighting_mode == "pair") {
+				var other_word_index = spans[i][j];
+				if(j < other_word_index) {
+					var replacementTextOne = document.getElementById(step + '_word_' + i + '_' + other_word_index);
+					var replacementTextTwo = document.getElementById(step + '_word_' + i + '_' + j);
+					var pair_indicies = j + '-' + other_word_index;
+					//changes += 'pair' + '+++' + pair_indicies + '+++' + replacementText + ' ... ' + other_word.innerText + '+++' + '\n';
+					changes += '(' + replacementTextOne.innerHTML + '|' + replacementTextTwo.innerHTML + '|' + j + '|'+ other_word_index + ')';
+					//alert(changes);
+				}					
+			} else if(highlighting_mode == "phrase") {
+				var span_end = spans[i][j];
+				//alert(span_end);
+				var phrase = "";
+				for (var k = j; k <= span_end; k++){
+						phrase += words[i][k] + " ";
+						//alert(phrase);
+						}	
+						
+				if(span_end > -1) {
+					var span = j + '-' + span_end;							
+					//alert(span);
+					//changes += 'phrase' + '---' + span + '---' + replacementText + '---' + '\n';			
+					changes += '(' + phrase + '|' + replacementText + ' span ' + span + ')';
+				}					
+			}
+		
+		}
+	}	
+	
+
+	if(sentences[i].trim() != sentence.trim()) {
+		// save the new sentence into the sentences array so that it gets used in the next step.
+		sentences[i] = sentence; 
+		global_changes[i] += changes;		
+				
+		var resultsdiv = document.getElementById('results');
+		resultsdiv.value = global_changes; 
+		resultsdiv.innerHTML = global_changes;
+		
+		//alert(changes);
+		
+		document.getElementById(step + '_results_' + (i+1)).value = changes;
+		//alert(document.getElementById(step + '_results_' + (i+1)).value);
+		
+		
+	}
+	
+		
+}
+</script>
+
+<head>
+<script type="text/javascript"> 
+
+function stopRKey(evt) { 
+  var evt = (evt) ? evt : ((event) ? event : null); 
+  var node = (evt.target) ? evt.target : ((evt.srcElement) ? evt.srcElement : null); 
+  if ((evt.keyCode == 13) && (node.type=="text"))  {return false;} 
+} 
+
+document.onkeypress = stopRKey; 
+
+</script>
+</head>
+
+
+<table>
+    <tbody>
+               <font face = Arial><h2>Correcting Errors in Sentences Written by Non-native Speakers of English</h2></font>
+        <tr>
+            <td width="81%">
+        <font face = Arial size = 2 align="justify"><p>Sentences written by non-native speakers of English may contain different types of errors.
+        The goal of this HIT is to correct errors in sentences produced by non-native English speakers in order to establish better quality data and give
+a feedback to non-native speakers of English. </p> 
+  <p> The process of correcting different types of errors in this data involves annotation of common English as Second Language (ESL) errors.
+Sentences annotated with common ESL errors may be shared with researches who are working on 
+  second language acquisition and automated spelling correction.</p>
+ <p>We are looking for several types of ESL errors including:</p>
+<ul>
+<li>Noun Related Errors
+<ul>
+<li>Determiner errors</li>
+<li>Noun determiner agreement errors</li>
+<li>Noun phrase errors</li>
+<li>Pronoun errors
+</ul>
+<li>Proposition Related Errors
+<li>Verb Related Errors
+<ul>
+<li>Subject verb agreement errors</li>
+<li>Tense errors</li>
+<li>Verb form errors</li>
+</ul>
+<li>Other Errors
+<ul>
+<li>Spelling / Punctuation errors</li>
+<li>Word form errors</li>
+<li>Awkward phrase errors</li>
+</ul>
+</ul>
+ <p><b>Instructions:</b> This hit is a multistep process. Each tab corresponds to a specific error types.
+ You need to correct all error types for every sentence if there are any. 
+ Please follow instructions carefully. General instructions are described below.
+ Additionally, more specific instructions related to the correction of specific error types will be provided on every tab.</p>
+<ul>
+<li> Each type of error must be corrected on a corresponding tab, for example, spelling errors must be corrected by clicking on "Spelling" tab,
+pronoun errors must be corrected by clicking on corresponding "Pronoun" tab. </li>
+<li>The order in which correction can be done is not restricted, for example, you can first correct pronoun related errors and then determiner errors for every sentence
+or you can correct all types of errors for the first sentence, then fo the second sentence and so on.
+ You can switch between tabs at any time. All errors that have been corrected on previous tabs are reflected on a current tab.</li>
+<li>You can make a correction by clicking on an incorrect word (or a phrase, or a pair of words) and type the correct version of the word/phrase/pair of words in the editbox that appears.
+If any word is missing, you should click on the word following the missing word and type two words into the editbox.
+If any word should be deleted, for example, unnecessary determiner before a noun, you need to select this determiner and type "_" instead.</ul>
+<p>Do not forget to correct errors ONLY on corresponding error tab! Good luck!</p><font>
+            </td>
+            <td bgcolor="#d3d3d3"><font size = "-0.1" face = Arial align="justify"><center><u><b>Informed Consent Form</b></u></center></font>
+            <font size = "-0.7" face = Arial align="justify"><p><b>Purpose of research study:</b> We are correcting different types of errors in sentences produced by non-native speakers of English.
+             Because these sentences are annotated with common ESL errors they may be shared with researches who are working on second
+             language acquisition and automated spelling correction.</p>
+            <p><b>Benefits:</b> Although it will not directly benefit you, this study may benefit society by helping to develop technology that allows better responses to future humanitarian crises.</p>
+            <p><b>Risks:</b>There are no risks for participating in this study.</p>
+            <p><b>Voluntary participation:</b>You may stop participating at any time without penalty by clicking on the &ldquo;Return HIT&rdquo; button, or closing your browser window.</p>
+            <p><b>We may end your participation if</b> you do not have adequate knowledge of the language, or you are not following the instructions, or your answers significantly deviate from known translations.</p>
+            <p><b>Confidentiality: </b>The only identifying information kept about you will be a WorkerID serial number and your IP address. This information may be disclosed to other researchers.</p>
+            <p><b>Questions/concerns: </b>You may e-mail questions to the principle investigator, <a href="http://cs.jhu.edu/~ccb/">Chris Callison-Burch</a>. If you feel you have been treated unfairly you may contact the Johns Hopkins University <a href="http://web.jhu.edu/Homewood-IRB/contact.html">Institutional Review Board</a>.</p>
+            <p><b>Clicking on the &ldquo;Accept HIT&rdquo; button</b> indicates that you understand the information in this consent form. You have not waived any legal rights you otherwise would have as a participant in a research study.</p>
+            </font></td>
+        </tr>
+    </tbody>
+</table>
+<p>&nbsp;</p>
+<script type="text/Javascript">
+writeTabs();
+// jQuery tab setup.
+  $(document).ready(function() {
+    jQuery('textarea').addProofreader();
+    $("#tabs").tabs({
+	select: function(e, ui) {
+		for(var i = 0; i < sentences.length; i++) {
+			compileCorrections(current_step, i);		
+		}
+		initalizeArrays();
+		
+		var step = ui.panel.id;
+		highlighting_mode = highlighting_modes[step];
+		current_step = step;
+		// update the HTML of the tab with the reinitialized sentences, etc. 
+		updateTab(step);
+		}
+    });
+  });
+ 
+var $tabs = $('#tabs').tabs();
+var selected = $tabs.tabs('option', 'selected');
+var highlighting_mode = highlighting_modes[steps[selected]];
+var current_step = steps[selected];
+	
+</script>
+
+<div id="results"></div>
+
+
+<p><font face = Arial size = 2>Thanks for doing our HIT! Please provide any comments that you have about this HIT. We appreciate your input!</font></p>
+<p><textarea rows="4" cols="80" name="comment"> </textarea>&nbsp;</p>
+
+<p><input type="hidden" name="userDisplayLanguage" /> <input type="hidden" name="browserInfo" /> <input type="hidden" name="ipAddress" /> <input type="hidden" name="country" /> <input type="hidden" name="city" /> <input type="hidden" name="region" /></p>
+<script language="Javascript" src="http://gd.geobytes.com/gd?after=-1&variables=GeobytesCountry,GeobytesCity,GeobytesRegion,GeobytesIpAddress">
+</script><script language="Javascript">
+
+//<input type = "hidden" name = "results"/>
+//<div id="results"></div>
+
+	//<!--
+	function getUserInfo() {
+		var userDisplayLanguage = navigator.language ? navigator.language : navigator.userDisplayLanguage;
+		var browserInfo = navigator.userAgent;
+		var country = sGeobytesCountry;
+		var city = sGeobytesCity;
+		var region = sGeobytesRegion;
+	
+		document.mturk_form.userDisplayLanguage.value = userDisplayLanguage;
+		document.mturk_form.browserInfo.value = browserInfo;
+		document.mturk_form.country.value = country;
+		document.mturk_form.city.value = city;
+		document.mturk_form.region.value = region;
+	}
+	
+	getUserInfo();
+// -->
+</script> 

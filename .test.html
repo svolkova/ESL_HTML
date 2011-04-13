@@ -1,0 +1,23 @@
+<html>
+
+
+<!-- Source the JavaScript spellChecker object -->
+<script language="javascript" type="text/javascript" src="spellChecker.js">
+</script>
+
+<!-- Call a function like this to handle the spell check command -->
+<script language="javascript" type="text/javascript">
+function openSpellChecker() {
+	// get the textarea we're going to check
+	var txt = document.myform.mytextarea;
+	// give the spellChecker object a reference to our textarea
+	// pass any number of text objects as arguments to the constructor:
+	var speller = new spellChecker( txt );
+	// kick it off
+	speller.openChecker();
+}
+</script>
+
+
+</html>
+
