@@ -405,6 +405,7 @@ function writeCorrectionsTable(step, i) {
 		}
 		
 		text += '<input type="button" value = "Confirm" onClick = "correctWord(\'' + step + '\', ' + i + ', ' + j + ')" >';
+		text += '<input type="button" value = "Reject" onClick = "uncorrectWord(\'' + step + '\', ' + i + ', ' + j + ')" >';
 		text += '</td></tr>';
 
 	}
@@ -436,17 +437,21 @@ function boolArrayToString(array) {
  */
 function correctWord(step, i, j) { 
 	var word = document.getElementById(step + "_word_"+ i + '_' + j);
-	var correction = document.getElementById(step + "_correction_" + i + '_' + j).value;
+	//var correction = document.getElementById(step + "_correction_" + i + '_' + j).value;
+	var correction = document.getElementById(step + "_correction_" + i + '_' + j);
 	
 	correction = correction.replace(/^\s+/g, "");
 	correction = correction.replace(/\s+$/g, "");
 	if(correction != "") {
 		word.innerText = correction + " ";
 	}
+	
 	if(highlighting_mode == "pair") {
 		other_word = spans[i][j];
 		var second_word = document.getElementById(step + "_word_"+ i + '_' + other_word);
-		var correction_of_second_word = document.getElementById(step + "_correction_"+ i + '_' + j + '_b').value;
+		//var correction_of_second_word = document.getElementById(step + "_correction_"+ i + '_' + j + '_b').value;
+		var correction_of_second_word = document.getElementById(step + "_correction_"+ i + '_' + j + '_b');
+		
 		correction_of_second_word = correction_of_second_word.replace(/^\s+/g, "");
 		correction_of_second_word = correction_of_second_word.replace(/\s+$/g, "");
 		if(correction_of_second_word != "") {
@@ -454,8 +459,8 @@ function correctWord(step, i, j) {
 		}
 	}
 	// SOV - debugging
-//	var row = document.getElementById(step + "_highlight_table_"+ i + '_' + j);
-//	row.style.display = "none";
+	//var row = document.getElementById(step + "_highlight_table_"+ i + '_' + j);
+	//row.style.display = "none";
 }
 
 /**
@@ -464,6 +469,17 @@ function correctWord(step, i, j) {
 function uncorrectWord(step, i, j) { 
 	var word = document.getElementById(step + "_word_"+ i + '_' + j);
 	word.innerText = words[i][j] + " ";
+	
+	/*if(highlighting_mode == "pair"){
+		other_word = spans[i][j];
+		var second_word = document.getElementById(step + "_word_"+ i + '_' + other_word);
+		second_word.innerText = words[i][other_word] + " ";
+	}*/
+	
+	//var row = document.getElementById(step + "_highlight_table_"+ i + '_' + j);
+	//row.style.display = "none";
+	
+	
 }
 
 
@@ -514,14 +530,15 @@ function clickWord(step, i, j) {
 		highlights[i][j] = !highlights[i][j];
 		var row = document.getElementById(step + "_highlight_table_"+ i + '_' + j);
 		
+		//SOV-debugging
 		if(highlights[i][j]) {
 			row.style.display = "";
-			correctWord(step, i, j);
 			document.getElementById(step + "_correction_"+ i + '_' + j).value = words[i][j];
 			document.getElementById(step + "_correction_"+ i + '_' + j).focus();
+			correctWord(step, i, j);
 			
 			
-			} else {
+			} else{
 			row.style.display = "none";
 			uncorrectWord(step, i, j);
 		}
@@ -554,7 +571,7 @@ function clickWord(step, i, j) {
 			selection.innerText = phrase;
 			var row = document.getElementById(step + '_highlight_table_' + i + '_' + span_start);
 			row.style.display = "";
-			document.getElementById(step + "_correction_"+ i + '_' + span_start).value = phrase;			
+			//document.getElementById(step + "_correction_"+ i + '_' + span_start).value = phrase;			
 			document.getElementById(step + "_correction_"+ i + '_' + span_start).focus();
 			previously_clicked_word[i] = -1;
 		} else {
@@ -574,7 +591,7 @@ function clickWord(step, i, j) {
 				var row = document.getElementById(step + "_highlight_table_"+ i + '_' + span_start);
 				row.style.display = "none";
 				spans[i][j] = -1;
-				previously_clicked_word[i] = -1;
+				previously_clicked_word[i] = -1;				
 			}
 		} 
 	// This governs the highlighting behavior when the selection mode is word pairs. 
@@ -592,10 +609,11 @@ function clickWord(step, i, j) {
 				selection.innerText = words[i][first_word] + ' ... ' + words[i][second_word];
 				var row = document.getElementById(step + "_highlight_table_"+ i + '_' + first_word);
 				row.style.display = "";
-				document.getElementById(step + "_correction_"+ i + '_' + first_word).value = words[i][first_word];				
+				//document.getElementById(step + "_correction_"+ i + '_' + first_word).value = words[i][first_word];				
 				document.getElementById(step + "_correction_"+ i + '_' + first_word).focus();
-
-				document.getElementById(step + "_correction_"+ i + '_' + second_word).value = words[i][second_word];
+				
+				//SOV! - second texbox is not populated with its initial value	
+				//document.getElementById(step + "_correction_"+ i + '_' + second_word).value = words[i][second_word];
 				previously_clicked_word[i] = -1;
 				spans[i][first_word] = second_word;
 				spans[i][second_word] = first_word;
@@ -775,9 +793,9 @@ function compileCorrections(step, i) {
 		sentences[i] = sentence; 
 		global_changes[i] += changes;		
 				
-		var resultsdiv = document.getElementById('results');
-		resultsdiv.value = global_changes; 
-		resultsdiv.innerHTML = global_changes;
+		//var resultsdiv = document.getElementById('results');
+		//resultsdiv.value = global_changes; 
+		//resultsdiv.innerHTML = global_changes;
 		
 		//alert(changes);
 		
@@ -875,7 +893,6 @@ If any word should be deleted, for example, unnecessary determiner before a noun
 writeTabs();
 // jQuery tab setup.
   $(document).ready(function() {
-    jQuery('textarea').addProofreader();
     $("#tabs").tabs({
 	select: function(e, ui) {
 		for(var i = 0; i < sentences.length; i++) {
