@@ -437,11 +437,12 @@ function boolArrayToString(array) {
  */
 function correctWord(step, i, j) { 
 	var word = document.getElementById(step + "_word_"+ i + '_' + j);
-	//var correction = document.getElementById(step + "_correction_" + i + '_' + j).value;
-	var correction = document.getElementById(step + "_correction_" + i + '_' + j);
+	var correction = document.getElementById(step + "_correction_" + i + '_' + j).value;
+	//var correction = document.getElementById(step + "_correction_" + i + '_' + j);
 	
 	correction = correction.replace(/^\s+/g, "");
 	correction = correction.replace(/\s+$/g, "");
+	
 	if(correction != "") {
 		word.innerText = correction + " ";
 	}
@@ -449,8 +450,8 @@ function correctWord(step, i, j) {
 	if(highlighting_mode == "pair") {
 		other_word = spans[i][j];
 		var second_word = document.getElementById(step + "_word_"+ i + '_' + other_word);
-		//var correction_of_second_word = document.getElementById(step + "_correction_"+ i + '_' + j + '_b').value;
-		var correction_of_second_word = document.getElementById(step + "_correction_"+ i + '_' + j + '_b');
+		var correction_of_second_word = document.getElementById(step + "_correction_"+ i + '_' + j + '_b').value;
+		//var correction_of_second_word = document.getElementById(step + "_correction_"+ i + '_' + j + '_b');
 		
 		correction_of_second_word = correction_of_second_word.replace(/^\s+/g, "");
 		correction_of_second_word = correction_of_second_word.replace(/\s+$/g, "");
@@ -458,29 +459,52 @@ function correctWord(step, i, j) {
 			second_word.innerText = correction_of_second_word + " ";
 		}
 	}
-	// SOV - debugging
-	//var row = document.getElementById(step + "_highlight_table_"+ i + '_' + j);
-	//row.style.display = "none";
+
+	var row = document.getElementById(step + "_highlight_table_"+ i + '_' + j);
+	row.style.display = "none";	
+	highlights[i][j] = false;
+	highlights[i][other_word] = false;
+	
 }
 
 /**
  * Reverts the word j in sentence i to its original version.
  */
 function uncorrectWord(step, i, j) { 
-	var word = document.getElementById(step + "_word_"+ i + '_' + j);
-	word.innerText = words[i][j] + " ";
-	
-	/*if(highlighting_mode == "pair"){
+	if(highlighting_mode == "word") {
+		var word = document.getElementById(step + "_word_"+ i + '_' + j);
+		word.innerText = words[i][j] + " ";
+	} else if(highlighting_mode == "pair") {
 		other_word = spans[i][j];
+		var first_word = document.getElementById(step + "_word_"+ i + '_' + j);
 		var second_word = document.getElementById(step + "_word_"+ i + '_' + other_word);
+		first_word.innerText = innerText = words[i][j] + " ";
 		second_word.innerText = words[i][other_word] + " ";
-	}*/
+		
+	} else if(highlighting_mode == "phrase") {
+		
+		var span_end = spans[i][j];
+				alert(span_end);
+				var phrase = "";
+				for (var k = j; k <= span_end; k++){
+						phrase += words[i][k] + " ";
+						alert(phrase);
+						}	
+		//var selection = document.getElementById(step + "_selection_"+ i + '_' + span_start);
+		//selection.innerText = phrase;
+		//alert(selection);
+					
+		
+		//phrase.innerText = temp_phrase + " ";	
+	}
 	
-	//var row = document.getElementById(step + "_highlight_table_"+ i + '_' + j);
-	//row.style.display = "none";
+	var row = document.getElementById(step + "_highlight_table_"+ i + '_' + j);
+	row.style.display = "none";
 	
-	
+	highlights[i][j] = false;
+	highlights[i][other_word] = false;
 }
+
 
 
 
@@ -530,17 +554,16 @@ function clickWord(step, i, j) {
 		highlights[i][j] = !highlights[i][j];
 		var row = document.getElementById(step + "_highlight_table_"+ i + '_' + j);
 		
-		//SOV-debugging
 		if(highlights[i][j]) {
 			row.style.display = "";
 			document.getElementById(step + "_correction_"+ i + '_' + j).value = words[i][j];
 			document.getElementById(step + "_correction_"+ i + '_' + j).focus();
-			correctWord(step, i, j);
+			//correctWord(step, i, j);
 			
 			
 			} else{
 			row.style.display = "none";
-			uncorrectWord(step, i, j);
+			//uncorrectWord(step, i, j);
 		}
 	// This governs the highlighting behavior when the selection mode is phrases. 
 	} else if(highlighting_mode == "phrase") {
@@ -571,7 +594,7 @@ function clickWord(step, i, j) {
 			selection.innerText = phrase;
 			var row = document.getElementById(step + '_highlight_table_' + i + '_' + span_start);
 			row.style.display = "";
-			//document.getElementById(step + "_correction_"+ i + '_' + span_start).value = phrase;			
+			document.getElementById(step + "_correction_"+ i + '_' + span_start).value = phrase;			
 			document.getElementById(step + "_correction_"+ i + '_' + span_start).focus();
 			previously_clicked_word[i] = -1;
 		} else {
@@ -609,11 +632,12 @@ function clickWord(step, i, j) {
 				selection.innerText = words[i][first_word] + ' ... ' + words[i][second_word];
 				var row = document.getElementById(step + "_highlight_table_"+ i + '_' + first_word);
 				row.style.display = "";
-				//document.getElementById(step + "_correction_"+ i + '_' + first_word).value = words[i][first_word];				
+				
+				document.getElementById(step + "_correction_"+ i + '_' + first_word).value = words[i][first_word];				
 				document.getElementById(step + "_correction_"+ i + '_' + first_word).focus();
 				
 				//SOV! - second texbox is not populated with its initial value	
-				//document.getElementById(step + "_correction_"+ i + '_' + second_word).value = words[i][second_word];
+				document.getElementById(step + "_correction_"+ i + '_' + second_word).value = words[i][second_word];
 				previously_clicked_word[i] = -1;
 				spans[i][first_word] = second_word;
 				spans[i][second_word] = first_word;
@@ -633,6 +657,7 @@ function clickWord(step, i, j) {
 				var row = document.getElementById(step + "_highlight_table_"+ i + '_' + first_word);
 				row.style.display = "none";
 				previously_clicked_word[i] = -1;
+		
 			}
 		} 
 
