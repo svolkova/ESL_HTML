@@ -1,4 +1,6 @@
-=<style type="text/css">
+<style type="text/css">
+
+
 
 <!-- 
 span.correct { background-color: #FFFFFF; }
@@ -11,6 +13,7 @@ A:active {text-decoration: none; color: black;}
 A:hover {text-decoration: none; color: black;}
 #tabs { font-size: 10pt;}
 -->
+
 </style>
 
 
@@ -21,7 +24,12 @@ A:hover {text-decoration: none; color: black;}
 
 
 <script type="text/Javascript">
-
+//TODO check reject button for word, pair and phrase
+//TODO add spell checking
+//TODO remove accpet/reject textbox when a new one is opened
+//TODO make "insert on space" working
+//TODO check if the box is populated with the most recent correction
+//TODO make "accept with nothing" innsted of _
 
 //<script language="javascript" type="text/javascript" src="spellChecker.js">
 
@@ -375,7 +383,7 @@ function writeCorrectionsTable(step, i) {
 		}
 		
 		text += '<input type="button" value = "Confirm" onClick = "confirmCorrection(\'' + step + '\', ' + i + ', ' + j + ')" >';
-		text += '<input type="button" value = "Reject" onClick = "rejectCorrection(\'' + step + '\', ' + i + ', ' + j + ')" >';
+		text += '<input type="button" value = "Cancel" onClick = "rejectCorrection(\'' + step + '\', ' + i + ', ' + j + ')" >';
 		
 		text += '</td></tr>';
 
